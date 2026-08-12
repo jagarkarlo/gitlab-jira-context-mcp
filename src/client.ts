@@ -1,0 +1,81 @@
+export type JsonValue = string | number | boolean | null | JsonObject | JsonValue[];
+export type JsonObject = { [key: string]: JsonValue };
+
+export interface ServiceConnection {
+  baseUrl: string;
+  token: string;
+}
+
+export function trimTrailingSlash(value: string): string {
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
+export function requiredEnvironment(environment: NodeJS.ProcessEnv, name: string): string {
+  const value = environment[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
+}
+
+export async function parseJsonResponse(response: Response): Promise<JsonValue> {
+  const text = await response.text();
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text) as JsonValue;
+  } catch {
+    return text;
+  }
+}
+
+export async function fetchGitLab(
+  connection: ServiceConnection,
+  path: string
+): Promise<JsonValue> {
+  const response = await fetch(`${connection.baseUrl}${path}`, {
+    headers: {
+      'PRIVATE-TOKEN': connection.token,
+      Accept: 'application/json'
+    }
+  });
+  const body = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(`GitLab request failed (${response.status}): ${JSON.stringify(body)}`);
+  }
+
+  return body;
+}
+
+export async function fetchJira(
+  connection: ServiceConnection,
+  path: string,
+  init?: RequestInit
+): Promise<JsonValue> {
+  const response = await fetch(`${connection.baseUrl}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${connection.token}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {})
+    }
+  });
+  const body = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(`Jira request failed (${response.status}): ${JSON.stringify(body)}`);
+  }
+
+  return body;
+}
+
+export function textResult(body: JsonValue) {
+  return {
+    content: [{ type: 'text' as const, text: JSON.stringify(body, null, 2) }]
+  };
+}
