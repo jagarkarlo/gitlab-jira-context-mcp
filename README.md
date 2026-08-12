@@ -12,10 +12,15 @@ The server uses stdio and runs on your machine. It sends requests only to the Gi
 | `gitlab_get_project` | Get a project by ID or path. |
 | `gitlab_list_merge_requests` | List merge requests, optionally for one project. |
 | `gitlab_get_merge_request` | Get a merge request and its metadata. |
+| `gitlab_list_pipelines` | List recent CI/CD pipelines for a project. |
+| `gitlab_get_file` | Get a repository file at a branch, tag, or commit. |
 | `jira_get_my_issues` | List issues assigned to the authenticated Jira user. |
 | `jira_get_issue` | Get an issue by key, including comments. |
-| `jira_list_comments` | List comments on an issue. |
-| `jira_list_worklogs` | List worklog entries on an issue. |
+| `jira_search_issues` | Search issues with JQL. |
+| `jira_get_transitions` | List workflow transitions available for an issue. |
+| `jira_get_changelog` | Get issue status and field history. |
+| `jira_list_comments` | List comments on an issue with `startAt` pagination. |
+| `jira_list_worklogs` | List worklog entries on an issue with `startAt` pagination. |
 | `jira_add_comment` | Add a comment after passing `confirm: true`. |
 | `jira_add_worklog` | Add a worklog entry after passing `confirm: true`. |
 | `confluence_get_page` | Get a Confluence page and its stored content. |
@@ -24,6 +29,8 @@ The server uses stdio and runs on your machine. It sends requests only to the Gi
 | `grafana_get_dashboard` | Get a Grafana dashboard by UID. |
 
 GitLab, Confluence, and Grafana tools are read-only. Jira mutations require an explicit `confirm: true` input and use the permissions of the configured Jira token.
+
+Jira search, comments, and worklogs return the service's pagination metadata. When `total` exceeds the number of returned entries, call the same tool with a later `startAt` value. `jira_add_worklog` accepts Jira duration syntax such as `1h 30m` and an optional ISO 8601 `started` timestamp.
 
 ## Requirements
 

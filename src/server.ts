@@ -7,7 +7,7 @@ import {
   fetchGitLab,
   fetchJira,
   jiraCommentRequest,
-  jiraWorklogRequest,
+  jiraWorklogRequestWithStart,
   optionalConnection,
   requiredEnvironment,
   textResult,
@@ -43,6 +43,13 @@ const server = new McpServer({
   name: 'gitlab-jira-context',
   version: '0.1.0'
 });
+
+const jiraIssueKey = z
+  .string()
+  .regex(/^[A-Z][A-Z0-9_]*-\d+$/, 'Use an uppercase Jira issue key, for example PROJECT-123.');
+const jiraDuration = z
+  .string()
+  .regex(/^\d+[wdhm](?:\s+\d+[wdhm])*$/, 'Use Jira duration syntax, for example 1h 30m.');
 
 server.registerTool(
   'gitlab_list_projects',
@@ -107,6 +114,46 @@ server.registerTool(
 );
 
 server.registerTool(
+  'gitlab_list_pipelines',
+  {
+    description: 'List recent CI/CD pipelines for a GitLab project.',
+    inputSchema: {
+      project: z.string().min(1),
+      ref: z.string().min(1).optional(),
+      status: z.enum(['created', 'waiting_for_resource', 'preparing', 'pending', 'running', 'success', 'failed', 'canceled', 'skipped', 'manual', 'scheduled']).optional(),
+      limit: z.number().int().min(1).max(100).default(20)
+    }
+  },
+  async ({ project, ref, status, limit }) => {
+    const query = new URLSearchParams({ per_page: String(limit) });
+    if (ref) query.set('ref', ref);
+    if (status) query.set('status', status);
+    return textResult(
+      await fetchGitLab(gitlab, `/api/v4/projects/${encodeURIComponent(project)}/pipelines?${query}`)
+    );
+  }
+);
+
+server.registerTool(
+  'gitlab_get_file',
+  {
+    description: 'Read one file from a GitLab repository at a branch, tag, or commit ref.',
+    inputSchema: {
+      project: z.string().min(1),
+      path: z.string().min(1),
+      ref: z.string().min(1).default('HEAD')
+    }
+  },
+  async ({ project, path, ref }) =>
+    textResult(
+      await fetchGitLab(
+        gitlab,
+        `/api/v4/projects/${encodeURIComponent(project)}/repository/files/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`
+      )
+    )
+);
+
+server.registerTool(
   'jira_get_my_issues',
   {
     description: 'List Jira issues assigned to the authenticated user.',
@@ -127,7 +174,7 @@ server.registerTool(
   'jira_get_issue',
   {
     description: 'Get a Jira issue by key, including comments.',
-    inputSchema: { issueKey: z.string().min(1) }
+    inputSchema: { issueKey: jiraIssueKey }
   },
   async ({ issueKey }) =>
     textResult(
@@ -139,19 +186,39 @@ server.registerTool(
 );
 
 server.registerTool(
+  'jira_search_issues',
+  {
+    description: 'Search Jira issues using JQL. This tool is read-only.',
+    inputSchema: {
+      jql: z.string().min(1),
+      startAt: z.number().int().min(0).default(0),
+      limit: z.number().int().min(1).max(100).default(20)
+    }
+  },
+  async ({ jql, startAt, limit }) =>
+    textResult(
+      await fetchJira(
+        jira,
+        `/rest/api/2/search?jql=${encodeURIComponent(jql)}&startAt=${startAt}&maxResults=${limit}&fields=summary,status,assignee,updated,issuetype,priority,project,labels`
+      )
+    )
+);
+
+server.registerTool(
   'jira_list_comments',
   {
     description: 'List comments on a Jira issue.',
     inputSchema: {
-      issueKey: z.string().min(1),
+      issueKey: jiraIssueKey,
+      startAt: z.number().int().min(0).default(0),
       limit: z.number().int().min(1).max(1000).default(100)
     }
   },
-  async ({ issueKey, limit }) =>
+  async ({ issueKey, startAt, limit }) =>
     textResult(
       await fetchJira(
         jira,
-        `/rest/api/2/issue/${encodeURIComponent(issueKey)}/comment?maxResults=${limit}`
+        `/rest/api/2/issue/${encodeURIComponent(issueKey)}/comment?startAt=${startAt}&maxResults=${limit}`
       )
     )
 );
@@ -161,15 +228,41 @@ server.registerTool(
   {
     description: 'List worklog entries on a Jira issue.',
     inputSchema: {
-      issueKey: z.string().min(1),
+      issueKey: jiraIssueKey,
+      startAt: z.number().int().min(0).default(0),
       limit: z.number().int().min(1).max(1000).default(100)
     }
   },
-  async ({ issueKey, limit }) =>
+  async ({ issueKey, startAt, limit }) =>
     textResult(
       await fetchJira(
         jira,
-        `/rest/api/2/issue/${encodeURIComponent(issueKey)}/worklog?maxResults=${limit}`
+        `/rest/api/2/issue/${encodeURIComponent(issueKey)}/worklog?startAt=${startAt}&maxResults=${limit}`
+      )
+    )
+);
+
+server.registerTool(
+  'jira_get_transitions',
+  {
+    description: 'List the status transitions currently available for a Jira issue.',
+    inputSchema: { issueKey: jiraIssueKey }
+  },
+  async ({ issueKey }) =>
+    textResult(await fetchJira(jira, `/rest/api/2/issue/${encodeURIComponent(issueKey)}/transitions`))
+);
+
+server.registerTool(
+  'jira_get_changelog',
+  {
+    description: 'Get the status and field change history for a Jira issue.',
+    inputSchema: { issueKey: jiraIssueKey }
+  },
+  async ({ issueKey }) =>
+    textResult(
+      await fetchJira(
+        jira,
+        `/rest/api/2/issue/${encodeURIComponent(issueKey)}?expand=changelog&fields=none`
       )
     )
 );
@@ -179,7 +272,7 @@ server.registerTool(
   {
     description: 'Add a plain-text comment to a Jira issue. Requires explicit confirmation.',
     inputSchema: {
-      issueKey: z.string().min(1),
+      issueKey: jiraIssueKey,
       comment: z.string().min(1),
       confirm: z.literal(true).describe('Must be true to confirm this Jira write.')
     }
@@ -199,18 +292,19 @@ server.registerTool(
   {
     description: 'Add a worklog entry to a Jira issue. Requires explicit confirmation.',
     inputSchema: {
-      issueKey: z.string().min(1),
-      timeSpent: z.string().min(1).describe('Jira duration, for example 1h 30m.'),
+      issueKey: jiraIssueKey,
+      timeSpent: jiraDuration,
       comment: z.string().min(1).optional(),
+      started: z.string().datetime({ offset: true }).optional(),
       confirm: z.literal(true).describe('Must be true to confirm this Jira write.')
     }
   },
-  async ({ issueKey, timeSpent, comment }) =>
+  async ({ issueKey, timeSpent, comment, started }) =>
     textResult(
       await fetchJira(
         jira,
         `/rest/api/2/issue/${encodeURIComponent(issueKey)}/worklog`,
-        jiraWorklogRequest(timeSpent, comment)
+        jiraWorklogRequestWithStart(timeSpent, comment, started)
       )
     )
 );

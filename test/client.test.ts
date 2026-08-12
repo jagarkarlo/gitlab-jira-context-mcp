@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   jiraCommentRequest,
+  jiraWorklogRequestWithStart,
   jiraWorklogRequest,
   optionalConnection,
   parseJsonResponse,
@@ -43,6 +44,10 @@ test('Jira write requests use the expected JSON bodies', () => {
   assert.deepEqual(jiraWorklogRequest('30m'), {
     method: 'POST',
     body: '{"timeSpent":"30m"}'
+  });
+  assert.deepEqual(jiraWorklogRequestWithStart('1h', undefined, '2026-08-12T08:00:00+02:00'), {
+    method: 'POST',
+    body: '{"timeSpent":"1h","started":"2026-08-12T08:00:00+02:00"}'
   });
 });
 

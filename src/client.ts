@@ -106,6 +106,21 @@ export function jiraWorklogRequest(timeSpent: string, comment?: string): Request
   };
 }
 
+export function jiraWorklogRequestWithStart(
+  timeSpent: string,
+  comment?: string,
+  started?: string
+): RequestInit {
+  return {
+    method: 'POST',
+    body: JSON.stringify({
+      timeSpent,
+      ...(comment ? { comment } : {}),
+      ...(started ? { started } : {})
+    })
+  };
+}
+
 export async function fetchBearerApi(
   service: string,
   connection: ServiceConnection,
