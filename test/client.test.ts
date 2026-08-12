@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  jiraCommentRequest,
+  jiraWorklogRequest,
   optionalConnection,
   parseJsonResponse,
   requiredEnvironment,
@@ -27,6 +29,21 @@ test('optionalConnection requires a complete configuration pair', () => {
     () => optionalConnection({ SERVICE_URL: 'https://example.com' }, 'SERVICE_URL', 'SERVICE_TOKEN'),
     /Set both SERVICE_URL and SERVICE_TOKEN/
   );
+});
+
+test('Jira write requests use the expected JSON bodies', () => {
+  assert.deepEqual(jiraCommentRequest('Investigation completed.'), {
+    method: 'POST',
+    body: '{"body":"Investigation completed."}'
+  });
+  assert.deepEqual(jiraWorklogRequest('1h 30m', 'Reviewed the change.'), {
+    method: 'POST',
+    body: '{"timeSpent":"1h 30m","comment":"Reviewed the change."}'
+  });
+  assert.deepEqual(jiraWorklogRequest('30m'), {
+    method: 'POST',
+    body: '{"timeSpent":"30m"}'
+  });
 });
 
 test('parseJsonResponse parses JSON and retains plain text', async () => {

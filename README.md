@@ -1,6 +1,6 @@
 # GitLab Jira Context MCP
 
-A local, read-only Model Context Protocol (MCP) server that lets MCP clients retrieve GitLab project and merge-request context alongside Jira issues, Confluence pages, and Grafana dashboards.
+A local Model Context Protocol (MCP) server that lets MCP clients retrieve GitLab project and merge-request context alongside Jira issues, Confluence pages, and Grafana dashboards. Jira comments and worklogs can be added only with explicit confirmation.
 
 The server uses stdio and runs on your machine. It sends requests only to the GitLab and Jira base URLs that you configure locally.
 
@@ -14,12 +14,16 @@ The server uses stdio and runs on your machine. It sends requests only to the Gi
 | `gitlab_get_merge_request` | Get a merge request and its metadata. |
 | `jira_get_my_issues` | List issues assigned to the authenticated Jira user. |
 | `jira_get_issue` | Get an issue by key, including comments. |
+| `jira_list_comments` | List comments on an issue. |
+| `jira_list_worklogs` | List worklog entries on an issue. |
+| `jira_add_comment` | Add a comment after passing `confirm: true`. |
+| `jira_add_worklog` | Add a worklog entry after passing `confirm: true`. |
 | `confluence_get_page` | Get a Confluence page and its stored content. |
 | `confluence_search` | Search Confluence content with CQL. |
 | `grafana_search_dashboards` | Search dashboards visible to the configured service account. |
 | `grafana_get_dashboard` | Get a Grafana dashboard by UID. |
 
-All tools in this release are read-only.
+GitLab, Confluence, and Grafana tools are read-only. Jira mutations require an explicit `confirm: true` input and use the permissions of the configured Jira token.
 
 ## Requirements
 
@@ -74,6 +78,7 @@ All tools in this release are read-only.
 - Use tokens with the smallest access scope that supports your intended requests.
 - Review the configured service URLs before starting the server.
 - Do not place credentials in source files, MCP configuration, issue comments, or commits.
+- Verify the issue key, work duration, and content before setting `confirm: true` for a Jira write.
 
 ## Development
 
@@ -89,7 +94,7 @@ git diff --check
 
 ## Roadmap
 
-The initial release is intentionally small and read-only. Later releases can add merge-request discussions, project search, or carefully confirmed write operations with dedicated tests and documentation.
+Future releases can add GitLab merge-request discussions and project search, while retaining explicit confirmation for every write operation.
 
 ## License
 

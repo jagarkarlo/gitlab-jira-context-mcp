@@ -89,6 +89,23 @@ export async function fetchJira(
   return body;
 }
 
+export function jiraCommentRequest(comment: string): RequestInit {
+  return {
+    method: 'POST',
+    body: JSON.stringify({ body: comment })
+  };
+}
+
+export function jiraWorklogRequest(timeSpent: string, comment?: string): RequestInit {
+  return {
+    method: 'POST',
+    body: JSON.stringify({
+      timeSpent,
+      ...(comment ? { comment } : {})
+    })
+  };
+}
+
 export async function fetchBearerApi(
   service: string,
   connection: ServiceConnection,

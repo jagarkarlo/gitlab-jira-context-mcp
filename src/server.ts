@@ -6,6 +6,8 @@ import {
   fetchBearerApi,
   fetchGitLab,
   fetchJira,
+  jiraCommentRequest,
+  jiraWorklogRequest,
   optionalConnection,
   requiredEnvironment,
   textResult,
@@ -132,6 +134,83 @@ server.registerTool(
       await fetchJira(
         jira,
         `/rest/api/2/issue/${encodeURIComponent(issueKey)}?fields=summary,description,status,assignee,reporter,comment,issuetype,priority,project,labels,updated`
+      )
+    )
+);
+
+server.registerTool(
+  'jira_list_comments',
+  {
+    description: 'List comments on a Jira issue.',
+    inputSchema: {
+      issueKey: z.string().min(1),
+      limit: z.number().int().min(1).max(1000).default(100)
+    }
+  },
+  async ({ issueKey, limit }) =>
+    textResult(
+      await fetchJira(
+        jira,
+        `/rest/api/2/issue/${encodeURIComponent(issueKey)}/comment?maxResults=${limit}`
+      )
+    )
+);
+
+server.registerTool(
+  'jira_list_worklogs',
+  {
+    description: 'List worklog entries on a Jira issue.',
+    inputSchema: {
+      issueKey: z.string().min(1),
+      limit: z.number().int().min(1).max(1000).default(100)
+    }
+  },
+  async ({ issueKey, limit }) =>
+    textResult(
+      await fetchJira(
+        jira,
+        `/rest/api/2/issue/${encodeURIComponent(issueKey)}/worklog?maxResults=${limit}`
+      )
+    )
+);
+
+server.registerTool(
+  'jira_add_comment',
+  {
+    description: 'Add a plain-text comment to a Jira issue. Requires explicit confirmation.',
+    inputSchema: {
+      issueKey: z.string().min(1),
+      comment: z.string().min(1),
+      confirm: z.literal(true).describe('Must be true to confirm this Jira write.')
+    }
+  },
+  async ({ issueKey, comment }) =>
+    textResult(
+      await fetchJira(
+        jira,
+        `/rest/api/2/issue/${encodeURIComponent(issueKey)}/comment`,
+        jiraCommentRequest(comment)
+      )
+    )
+);
+
+server.registerTool(
+  'jira_add_worklog',
+  {
+    description: 'Add a worklog entry to a Jira issue. Requires explicit confirmation.',
+    inputSchema: {
+      issueKey: z.string().min(1),
+      timeSpent: z.string().min(1).describe('Jira duration, for example 1h 30m.'),
+      comment: z.string().min(1).optional(),
+      confirm: z.literal(true).describe('Must be true to confirm this Jira write.')
+    }
+  },
+  async ({ issueKey, timeSpent, comment }) =>
+    textResult(
+      await fetchJira(
+        jira,
+        `/rest/api/2/issue/${encodeURIComponent(issueKey)}/worklog`,
+        jiraWorklogRequest(timeSpent, comment)
       )
     )
 );
