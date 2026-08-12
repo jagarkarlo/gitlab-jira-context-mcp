@@ -1,6 +1,6 @@
 # GitLab Jira Context MCP
 
-A local, read-only Model Context Protocol (MCP) server that lets MCP clients retrieve GitLab project and merge-request context alongside Jira issues.
+A local, read-only Model Context Protocol (MCP) server that lets MCP clients retrieve GitLab project and merge-request context alongside Jira issues, Confluence pages, and Grafana dashboards.
 
 The server uses stdio and runs on your machine. It sends requests only to the GitLab and Jira base URLs that you configure locally.
 
@@ -14,6 +14,10 @@ The server uses stdio and runs on your machine. It sends requests only to the Gi
 | `gitlab_get_merge_request` | Get a merge request and its metadata. |
 | `jira_get_my_issues` | List issues assigned to the authenticated Jira user. |
 | `jira_get_issue` | Get an issue by key, including comments. |
+| `confluence_get_page` | Get a Confluence page and its stored content. |
+| `confluence_search` | Search Confluence content with CQL. |
+| `grafana_search_dashboards` | Search dashboards visible to the configured service account. |
+| `grafana_get_dashboard` | Get a Grafana dashboard by UID. |
 
 All tools in this release are read-only.
 
@@ -23,6 +27,8 @@ All tools in this release are read-only.
 - An MCP client with stdio server support, such as Visual Studio Code with GitHub Copilot
 - A GitLab personal access token with access to the projects you need
 - A Jira Server or Data Center personal access token
+- Optional: a Confluence Server or Data Center personal access token
+- Optional: a Grafana service account token with dashboard read access
 
 ## Quick Start
 
@@ -42,7 +48,7 @@ All tools in this release are read-only.
    cp .env.example .env
    ```
 
-   Set `GITLAB_BASE_URL`, `GITLAB_TOKEN`, `JIRA_BASE_URL`, and `JIRA_API_TOKEN`. Keep `.env` local; it is ignored by Git.
+  Set `GITLAB_BASE_URL`, `GITLAB_TOKEN`, `JIRA_BASE_URL`, and `JIRA_API_TOKEN`. Confluence and Grafana are optional; set both variables in either integration's pair to enable its tools. Keep `.env` local; it is ignored by Git.
 
 3. Register the compiled server in your MCP client. In VS Code, run `MCP: Open User Configuration` and add this entry to the `servers` object. Replace `/absolute/path/to` with the cloned repository path.
 
@@ -66,7 +72,7 @@ All tools in this release are read-only.
 
 - The server reads credentials only from the local `.env` file or process environment.
 - Use tokens with the smallest access scope that supports your intended requests.
-- Review the configured GitLab and Jira URLs before starting the server.
+- Review the configured service URLs before starting the server.
 - Do not place credentials in source files, MCP configuration, issue comments, or commits.
 
 ## Development

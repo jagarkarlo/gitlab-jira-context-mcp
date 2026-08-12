@@ -3,8 +3,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { config as loadEnv } from 'dotenv';
 import { z } from 'zod';
 import {
+  fetchBearerApi,
   fetchGitLab,
   fetchJira,
+  optionalConnection,
   requiredEnvironment,
   textResult,
   trimTrailingSlash,
@@ -21,6 +23,19 @@ const jira: ServiceConnection = {
   baseUrl: trimTrailingSlash(requiredEnvironment(process.env, 'JIRA_BASE_URL')),
   token: requiredEnvironment(process.env, 'JIRA_API_TOKEN')
 };
+const confluence = optionalConnection(process.env, 'CONFLUENCE_BASE_URL', 'CONFLUENCE_API_TOKEN');
+const grafana = optionalConnection(process.env, 'GRAFANA_BASE_URL', 'GRAFANA_API_TOKEN');
+
+function requiredIntegration(
+  connection: ServiceConnection | undefined,
+  name: string
+): ServiceConnection {
+  if (!connection) {
+    throw new Error(`${name} is not configured. Set its base URL and API token to enable these tools.`);
+  }
+
+  return connection;
+}
 
 const server = new McpServer({
   name: 'gitlab-jira-context',
@@ -117,6 +132,76 @@ server.registerTool(
       await fetchJira(
         jira,
         `/rest/api/2/issue/${encodeURIComponent(issueKey)}?fields=summary,description,status,assignee,reporter,comment,issuetype,priority,project,labels,updated`
+      )
+    )
+);
+
+server.registerTool(
+  'confluence_get_page',
+  {
+    description: 'Get a Confluence page by numeric page ID, including stored page content.',
+    inputSchema: { pageId: z.string().min(1) }
+  },
+  async ({ pageId }) =>
+    textResult(
+      await fetchBearerApi(
+        'Confluence',
+        requiredIntegration(confluence, 'Confluence'),
+        `/rest/api/content/${encodeURIComponent(pageId)}?expand=body.storage,version,space`
+      )
+    )
+);
+
+server.registerTool(
+  'confluence_search',
+  {
+    description: 'Search Confluence content with a CQL query.',
+    inputSchema: {
+      cql: z.string().min(1),
+      limit: z.number().int().min(1).max(100).default(20)
+    }
+  },
+  async ({ cql, limit }) =>
+    textResult(
+      await fetchBearerApi(
+        'Confluence',
+        requiredIntegration(confluence, 'Confluence'),
+        `/rest/api/content/search?cql=${encodeURIComponent(cql)}&limit=${limit}&expand=space`
+      )
+    )
+);
+
+server.registerTool(
+  'grafana_search_dashboards',
+  {
+    description: 'Search Grafana dashboards visible to the configured service account.',
+    inputSchema: {
+      query: z.string().default(''),
+      limit: z.number().int().min(1).max(1000).default(20)
+    }
+  },
+  async ({ query, limit }) =>
+    textResult(
+      await fetchBearerApi(
+        'Grafana',
+        requiredIntegration(grafana, 'Grafana'),
+        `/api/search?query=${encodeURIComponent(query)}&limit=${limit}`
+      )
+    )
+);
+
+server.registerTool(
+  'grafana_get_dashboard',
+  {
+    description: 'Get a Grafana dashboard by UID.',
+    inputSchema: { uid: z.string().min(1) }
+  },
+  async ({ uid }) =>
+    textResult(
+      await fetchBearerApi(
+        'Grafana',
+        requiredIntegration(grafana, 'Grafana'),
+        `/api/dashboards/uid/${encodeURIComponent(uid)}`
       )
     )
 );

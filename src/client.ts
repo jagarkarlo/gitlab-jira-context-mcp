@@ -19,6 +19,21 @@ export function requiredEnvironment(environment: NodeJS.ProcessEnv, name: string
   return value;
 }
 
+export function optionalConnection(
+  environment: NodeJS.ProcessEnv,
+  baseUrlName: string,
+  tokenName: string
+): ServiceConnection | undefined {
+  const baseUrl = environment[baseUrlName];
+  const token = environment[tokenName];
+
+  if (Boolean(baseUrl) !== Boolean(token)) {
+    throw new Error(`Set both ${baseUrlName} and ${tokenName} to enable this integration.`);
+  }
+
+  return baseUrl && token ? { baseUrl: trimTrailingSlash(baseUrl), token } : undefined;
+}
+
 export async function parseJsonResponse(response: Response): Promise<JsonValue> {
   const text = await response.text();
   if (!text) {
@@ -69,6 +84,26 @@ export async function fetchJira(
 
   if (!response.ok) {
     throw new Error(`Jira request failed (${response.status}): ${JSON.stringify(body)}`);
+  }
+
+  return body;
+}
+
+export async function fetchBearerApi(
+  service: string,
+  connection: ServiceConnection,
+  path: string
+): Promise<JsonValue> {
+  const response = await fetch(`${connection.baseUrl}${path}`, {
+    headers: {
+      Authorization: `Bearer ${connection.token}`,
+      Accept: 'application/json'
+    }
+  });
+  const body = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(`${service} request failed (${response.status}): ${JSON.stringify(body)}`);
   }
 
   return body;
