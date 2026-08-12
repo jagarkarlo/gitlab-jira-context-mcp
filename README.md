@@ -1,8 +1,22 @@
 # GitLab Jira Context MCP
 
-A local Model Context Protocol (MCP) server that lets MCP clients retrieve GitLab project and merge-request context alongside Jira issues, Confluence pages, and Grafana dashboards. Jira comments and worklogs can be added only with explicit confirmation.
+A local Model Context Protocol (MCP) server that connects GitLab project and merge-request context with Jira work tracking, Confluence pages, and Grafana dashboards. Jira comments and worklogs can be added only with explicit confirmation.
 
-The server uses stdio and runs on your machine. It sends requests only to the GitLab and Jira base URLs that you configure locally.
+The server uses stdio and runs on your machine. It sends requests only to the service URLs that you configure locally.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Client[VS Code / MCP Client] <-->|stdio| Server[GitLab Jira Context MCP]
+  Server -->|REST API| GitLab[GitLab]
+  Server -->|REST API| Jira[Jira]
+  Server -. optional REST API .-> Confluence[Confluence]
+  Server -. optional REST API .-> Grafana[Grafana]
+  Config[Local .env] -. credentials and URLs .-> Server
+```
+
+The server never exposes an HTTP endpoint or persists service data. Tokens stay in your local `.env` file or process environment.
 
 ## Included Tools
 
@@ -32,6 +46,20 @@ GitLab, Confluence, and Grafana tools are read-only. Jira mutations require an e
 
 Jira search, comments, and worklogs return the service's pagination metadata. When `total` exceeds the number of returned entries, call the same tool with a later `startAt` value. `jira_add_worklog` accepts Jira duration syntax such as `1h 30m` and an optional ISO 8601 `started` timestamp.
 
+## Repository Structure
+
+```text
+gitlab-jira-context-mcp/
+├── src/
+│   ├── client.ts       # HTTP clients, authentication, and request helpers
+│   └── server.ts       # MCP tool registration and input schemas
+├── test/
+│   └── client.test.ts  # Focused helper and request-payload tests
+├── .env.example        # Neutral local configuration template
+├── package.json        # Scripts and dependencies
+└── tsconfig.json       # TypeScript configuration
+```
+
 ## Requirements
 
 - Node.js 20 or newer
@@ -59,7 +87,7 @@ Jira search, comments, and worklogs return the service's pagination metadata. Wh
    cp .env.example .env
    ```
 
-  Set `GITLAB_BASE_URL`, `GITLAB_TOKEN`, `JIRA_BASE_URL`, and `JIRA_API_TOKEN`. Confluence and Grafana are optional; set both variables in either integration's pair to enable its tools. Keep `.env` local; it is ignored by Git.
+    Set `GITLAB_BASE_URL`, `GITLAB_TOKEN`, `JIRA_BASE_URL`, and `JIRA_API_TOKEN`. Confluence and Grafana are optional; set both variables in either integration's pair to enable its tools. Keep `.env` local; it is ignored by Git.
 
 3. Register the compiled server in your MCP client. In VS Code, run `MCP: Open User Configuration` and add this entry to the `servers` object. Replace `/absolute/path/to` with the cloned repository path.
 
@@ -86,6 +114,15 @@ Jira search, comments, and worklogs return the service's pagination metadata. Wh
 - Review the configured service URLs before starting the server.
 - Do not place credentials in source files, MCP configuration, issue comments, or commits.
 - Verify the issue key, work duration, and content before setting `confirm: true` for a Jira write.
+
+## Configuration Boundaries
+
+| Integration | Required | Access |
+| --- | --- | --- |
+| GitLab | Yes | Read-only projects, merge requests, pipelines, and repository files. |
+| Jira | Yes | Read issues, comments, worklogs, transitions, and changelog; confirmed comment/worklog writes. |
+| Confluence | Optional | Read-only page lookup and CQL search. |
+| Grafana | Optional | Read-only dashboard search and retrieval. |
 
 ## Development
 
