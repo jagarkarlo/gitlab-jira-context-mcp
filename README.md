@@ -1,5 +1,12 @@
 # GitLab Jira Context MCP
 
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Model Context Protocol](https://img.shields.io/badge/Model_Context_Protocol-Server-111827)](https://modelcontextprotocol.io/)
+[![GitLab](https://img.shields.io/badge/GitLab-Integration-FC6D26?logo=gitlab&logoColor=white)](https://about.gitlab.com/)
+[![Jira](https://img.shields.io/badge/Jira-Integration-0052CC?logo=jira&logoColor=white)](https://www.atlassian.com/software/jira)
+[![Grafana](https://img.shields.io/badge/Grafana-Integration-F46800?logo=grafana&logoColor=white)](https://grafana.com/)
+
 A local Model Context Protocol (MCP) server that connects GitLab project and merge-request context with Jira work tracking, Confluence pages, and Grafana dashboards. Jira comments and worklogs can be added only with explicit confirmation.
 
 The server uses stdio and runs on your machine. It sends requests only to the service URLs that you configure locally.
