@@ -4,11 +4,14 @@ import { config as loadEnv } from 'dotenv';
 import { z } from 'zod';
 import {
   fetchBearerApi,
+  fetchGitHub,
   fetchGitLab,
+  githubFileRequest,
   fetchJira,
   jiraCommentRequest,
   jiraWorklogRequestWithStart,
   optionalConnection,
+  optionalGitHubConnection,
   requiredEnvironment,
   textResult,
   trimTrailingSlash,
@@ -27,6 +30,7 @@ const jira: ServiceConnection = {
 };
 const confluence = optionalConnection(process.env, 'CONFLUENCE_BASE_URL', 'CONFLUENCE_API_TOKEN');
 const grafana = optionalConnection(process.env, 'GRAFANA_BASE_URL', 'GRAFANA_API_TOKEN');
+const github = optionalGitHubConnection(process.env);
 
 function requiredIntegration(
   connection: ServiceConnection | undefined,
@@ -37,6 +41,21 @@ function requiredIntegration(
   }
 
   return connection;
+}
+
+function requiredGitHubIntegration() {
+  if (!github) {
+    throw new Error('GitHub is not configured. Set GITHUB_TOKEN to enable GitHub tools.');
+  }
+
+  return github;
+}
+
+function githubContentPath(repository: string, filePath: string): string {
+  return `/repos/${encodeURIComponent(repository)}/contents/${filePath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`;
 }
 
 const server = new McpServer({
@@ -149,6 +168,87 @@ server.registerTool(
       await fetchGitLab(
         gitlab,
         `/api/v4/projects/${encodeURIComponent(project)}/repository/files/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`
+      )
+    )
+);
+
+server.registerTool(
+  'github_get_authenticated_user',
+  {
+    description: 'Get the authenticated GitHub user. Use this to verify GITHUB_TOKEN access.',
+    inputSchema: {}
+  },
+  async () => textResult(await fetchGitHub(requiredGitHubIntegration(), '/user'))
+);
+
+server.registerTool(
+  'github_list_repositories',
+  {
+    description: 'List repositories accessible to the configured GitHub token.',
+    inputSchema: {
+      visibility: z.enum(['all', 'public', 'private']).default('all'),
+      limit: z.number().int().min(1).max(100).default(30)
+    }
+  },
+  async ({ visibility, limit }) =>
+    textResult(
+      await fetchGitHub(
+        requiredGitHubIntegration(),
+        `/user/repos?visibility=${visibility}&affiliation=owner,collaborator&per_page=${limit}&sort=updated`
+      )
+    )
+);
+
+server.registerTool(
+  'github_get_repository',
+  {
+    description: 'Get metadata for a GitHub repository using owner/name.',
+    inputSchema: { repository: z.string().regex(/^[^/]+\/[^/]+$/, 'Use owner/repository.') }
+  },
+  async ({ repository }) =>
+    textResult(await fetchGitHub(requiredGitHubIntegration(), `/repos/${encodeURIComponent(repository)}`))
+);
+
+server.registerTool(
+  'github_get_file_content',
+  {
+    description: 'Read one text file from a GitHub repository and branch or ref.',
+    inputSchema: {
+      repository: z.string().regex(/^[^/]+\/[^/]+$/, 'Use owner/repository.'),
+      path: z.string().min(1),
+      ref: z.string().min(1).default('HEAD')
+    }
+  },
+  async ({ repository, path, ref }) =>
+    textResult(
+      await fetchGitHub(
+        requiredGitHubIntegration(),
+        `${githubContentPath(repository, path)}?ref=${encodeURIComponent(ref)}`
+      )
+    )
+);
+
+server.registerTool(
+  'github_create_or_update_file',
+  {
+    description:
+      'Create or update exactly one UTF-8 text file on GitHub. Requires confirm: true. For updates, supply the file SHA returned by github_get_file_content to prevent overwriting newer changes.',
+    inputSchema: {
+      repository: z.string().regex(/^[^/]+\/[^/]+$/, 'Use owner/repository.'),
+      path: z.string().min(1),
+      content: z.string(),
+      message: z.string().min(1).max(250),
+      branch: z.string().min(1).optional(),
+      sha: z.string().min(1).optional(),
+      confirm: z.literal(true).describe('Must be true to confirm this repository write.')
+    }
+  },
+  async ({ repository, path, content, message, branch, sha }) =>
+    textResult(
+      await fetchGitHub(
+        requiredGitHubIntegration(),
+        githubContentPath(repository, path),
+        githubFileRequest(content, message, branch, sha)
       )
     )
 );
