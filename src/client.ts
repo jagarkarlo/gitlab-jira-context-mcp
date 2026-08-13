@@ -6,6 +6,11 @@ export interface ServiceConnection {
   token: string;
 }
 
+export interface GitHubConnection {
+  baseUrl: string;
+  token: string;
+}
+
 export function trimTrailingSlash(value: string): string {
   return value.endsWith('/') ? value.slice(0, -1) : value;
 }
@@ -32,6 +37,20 @@ export function optionalConnection(
   }
 
   return baseUrl && token ? { baseUrl: trimTrailingSlash(baseUrl), token } : undefined;
+}
+
+export function optionalGitHubConnection(
+  environment: NodeJS.ProcessEnv
+): GitHubConnection | undefined {
+  const token = environment.GITHUB_TOKEN;
+  if (!token) {
+    return undefined;
+  }
+
+  return {
+    baseUrl: trimTrailingSlash(environment.GITHUB_API_BASE_URL ?? 'https://api.github.com'),
+    token
+  };
 }
 
 export async function parseJsonResponse(response: Response): Promise<JsonValue> {
@@ -139,6 +158,47 @@ export async function fetchBearerApi(
   }
 
   return body;
+}
+
+export async function fetchGitHub(
+  connection: GitHubConnection,
+  path: string,
+  init?: RequestInit
+): Promise<JsonValue> {
+  const response = await fetch(`${connection.baseUrl}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${connection.token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(init?.headers ?? {})
+    }
+  });
+  const body = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(`GitHub request failed (${response.status}): ${JSON.stringify(body)}`);
+  }
+
+  return body;
+}
+
+export function githubFileRequest(
+  content: string,
+  message: string,
+  branch?: string,
+  sha?: string
+): RequestInit {
+  return {
+    method: 'PUT',
+    body: JSON.stringify({
+      message,
+      content: Buffer.from(content, 'utf8').toString('base64'),
+      ...(branch ? { branch } : {}),
+      ...(sha ? { sha } : {})
+    })
+  };
 }
 
 export function textResult(body: JsonValue) {

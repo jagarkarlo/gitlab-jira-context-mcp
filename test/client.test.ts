@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  githubFileRequest,
   jiraCommentRequest,
   jiraWorklogRequestWithStart,
   jiraWorklogRequest,
   optionalConnection,
+  optionalGitHubConnection,
   parseJsonResponse,
   requiredEnvironment,
   trimTrailingSlash
@@ -32,6 +34,18 @@ test('optionalConnection requires a complete configuration pair', () => {
   );
 });
 
+test('optional GitHub configuration uses the public API by default', () => {
+  assert.equal(optionalGitHubConnection({}), undefined);
+  assert.deepEqual(optionalGitHubConnection({ GITHUB_TOKEN: 'token' }), {
+    baseUrl: 'https://api.github.com',
+    token: 'token'
+  });
+  assert.deepEqual(
+    optionalGitHubConnection({ GITHUB_API_BASE_URL: 'https://github.example.com/api/v3/', GITHUB_TOKEN: 'token' }),
+    { baseUrl: 'https://github.example.com/api/v3', token: 'token' }
+  );
+});
+
 test('Jira write requests use the expected JSON bodies', () => {
   assert.deepEqual(jiraCommentRequest('Investigation completed.'), {
     method: 'POST',
@@ -48,6 +62,13 @@ test('Jira write requests use the expected JSON bodies', () => {
   assert.deepEqual(jiraWorklogRequestWithStart('1h', undefined, '2026-08-12T08:00:00+02:00'), {
     method: 'POST',
     body: '{"timeSpent":"1h","started":"2026-08-12T08:00:00+02:00"}'
+  });
+});
+
+test('GitHub file writes encode UTF-8 content and retain update controls', () => {
+  assert.deepEqual(githubFileRequest('Hello, world!', 'docs: add example', 'main', 'current-sha'), {
+    method: 'PUT',
+    body: '{"message":"docs: add example","content":"SGVsbG8sIHdvcmxkIQ==","branch":"main","sha":"current-sha"}'
   });
 });
 
