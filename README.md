@@ -1,12 +1,13 @@
 # GitLab Jira Context MCP
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![Model Context Protocol](https://img.shields.io/badge/Model_Context_Protocol-Server-111827)](https://modelcontextprotocol.io/)
-[![GitLab](https://img.shields.io/badge/GitLab-Integration-FC6D26?logo=gitlab&logoColor=white)](https://about.gitlab.com/)
-[![Jira](https://img.shields.io/badge/Jira-Integration-0052CC?logo=jira&logoColor=white)](https://www.atlassian.com/software/jira)
-[![Grafana](https://img.shields.io/badge/Grafana-Integration-F46800?logo=grafana&logoColor=white)](https://grafana.com/)
-[![GitHub](https://img.shields.io/badge/GitHub-Integration-181717?logo=github&logoColor=white)](https://github.com/)
+<p align="center">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Node.js-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js">
+  <img src="https://img.shields.io/badge/Model_Context_Protocol-111827?style=for-the-badge" alt="Model Context Protocol">
+  <img src="https://img.shields.io/badge/GitLab-FC6D26?style=for-the-badge&logo=gitlab&logoColor=white" alt="GitLab">
+  <img src="https://img.shields.io/badge/Jira-0052CC?style=for-the-badge&logo=jira&logoColor=white" alt="Jira">
+  <img src="https://img.shields.io/badge/License-MIT-3FB950?style=for-the-badge" alt="License">
+</p>
 
 A local Model Context Protocol (MCP) server that connects GitLab project and merge-request context with Jira work tracking, Confluence pages, Grafana dashboards, and optional GitHub repository context. Jira comments, worklogs, and GitHub file changes require explicit confirmation.
 
